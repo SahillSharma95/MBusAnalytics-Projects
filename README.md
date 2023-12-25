@@ -1,1 +1,1 @@
-This repository contains all of the code I wrote during my Master of Business Analytics at Macquarie University. I achieved a final GPA of 6/7. 
+This repository contains all of the projects completed using various programming languages and software, during my Master of Business Analytics at Macquarie University. I achieved a final GPA of 6.00/7. 
