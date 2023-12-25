@@ -56,7 +56,7 @@ install.packages('tinytex')
 ```
 
 
-Reading in the dataset for this assignment (Dataset = zooplankton.csv)
+Reading in the dataset for this assignment (Dataset = pedestrians_2021.csv)
 
 ```{r,echo=FALSE,message=FALSE,warning=FALSE,eval=TRUE}
 # Set so that long lines in R will be wrapped:
