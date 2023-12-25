@@ -1,0 +1,439 @@
+---
+title: "STAT8123 Assignment 3"
+# subtitle: "with or without a subtitle"
+author: "Sahill Sharma (StudentID - 43291023)"
+date: "7th November 2021"
+editor_options:
+  chunk_output_type: console
+header-includes:
+- \usepackage{fancyhdr}
+- \usepackage{geometry}
+- \usepackage{pdflscape}
+- \renewcommand{\headrulewidth}{0.4pt}
+- \renewcommand{\footrulewidth}{0.4pt}
+- \renewcommand{\thesection}{\arabic{section}}
+- \newcommand{\blandscape}{\begin{landscape}}
+- \newcommand{\elandscape}{\end{landscape}}
+output:
+  pdf_document:
+    fig_caption: yes
+    number_sections: yes
+    toc: yes
+documentclass: report
+---
+
+```{r global_options, include=FALSE, echo=FALSE}
+knitr::opts_chunk$set(fig.path='Figs/') #size 14 if poss
+
+# the following libraries make nice tables and captions, respectively
+library( pander )
+library(knitr)
+library(captioner )
+library(formatR)
+
+# you will need the tidyverse library to manipulate your data and to make plots
+library(tidyverse)
+options(scipen = 999)
+
+panderOptions( 'table.split.table', 100 )
+panderOptions( 'table.alignment.default', 'left' )
+panderOptions( 'digits', 2 )
+panderOptions('round',2)
+
+```
+
+```{r package-options, include=FALSE}
+knitr::opts_knit$set(progress = TRUE, verbose = TRUE)
+knitr::opts_chunk$set(tidy.opts=list(width.cutoff=80), tidy=TRUE)
+```
+\clearpage 
+
+Installation of the required markdown packages for this assignment:
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE, eval=FALSE}
+install.packages('rmarkdown')
+install.packages('tinytex')
+```
+
+
+Reading in the dataset for this assignment (Dataset = zooplankton.csv)
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE,eval=TRUE}
+# Set so that long lines in R will be wrapped:
+knitr::opts_chunk$set(tidy.opts=list(width.cutoff=25), tidy=TRUE)
+```
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+setwd("/Users/sahillsharma/Desktop/SAHILL/Master of Business Analytics/STAT8123/Assessments/Assignment 3")
+pedestrians_2021 <- read_csv("pedestrians_2021.csv")
+
+```
+
+
+\section{Introduction}
+
+This markdown report forms part of my submission for STAT8123 - Assignment 3. There are 7 questions, which are specified below. 
+
+1. Make a time series plot of pedestrian counts and explain what you learn about the daily pedestrian pattern in inner city of Melbourne in 2021?
+
+2. Create plots of the monthly and weekly pedestrian counts. a) Which month has the largest pedestrian count in 2021? b) Is there a clear day of the week pattern for the pedestrian count? [Hint: You can use lubridate package to manipulate dates and time.]
+
+3. Use the alluvial plot to compare the pedestrian traffic flow at Melbourne Central, New Quay and Southbank for their day-of-week pattern.
+   
+4. Create a dumbbell chart to compare the hourly pedestrian counts in January and April 2021 at Southern Cross Station.
+   
+5. Using box plots to compare the monthly pattern of the pedestrian counts. Then fit a linear model for each month for pedestrian counts and comment on the performance of the model with residual plots. [You can use add_residuals function from moldelr package to indicate residuals in your plot].
+   
+6. Filter out ten dates where the model from Question 5 fails, overestimating and underestimating the pedestrian count, respectively. Use what you know about Melbourne or the internet to explore the possible reasons for the misfits. What does it suggest for your modelling? Is a linear model a good choice for this data?
+   
+7. Open question: Build your own model to uncover the pedestrian pattern further. Use the broom package to tidy up your model output and include model diagnostic plots. [Hint: You can subset the data set, for instance, to build models for specific months, times or sensors, or build a better model than that in Question 5].
+
+\clearpage
+
+\section{Data}
+
+This data set is comprised of hourly pedestrian counts, for January - September 2021, collected from sensors set up in various high-traffic areas across the City of Melbourne. 
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE, eval=TRUE}
+head(pedestrians_2021)
+```
+
+\clearpage
+
+
+\section{Methods}
+
+The report utilizes a mixture of uni variate and bi variate plots to provide a visual representation of the data. Data manipulation for all questions were performed through dplyr methods and commands. 
+
+All analyses were completed in `r R.version$version.string` via RStudio version 1.4.1106 with the final compiling of the report on `r format(Sys.time(), '%A, %d %B, %Y')`. 
+
+\clearpage
+
+
+
+
+\section{Assignment Questions}
+
+\subsection{Question 1}
+
+Make a time series plot of pedestrian counts and explain what you learn about the daily pedestrian pattern in inner city of Melbourne in 2021? 
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE, eval=TRUE}
+# Group pedestrian counts by date to get sum(Count) for each Date
+q1 <- pedestrians_2021 %>%
+  group_by(Date) %>%
+  summarise(ped_count = sum(Count))
+
+# Time-Series plot of Pedestrian Counts vs Date
+ggplot(q1, aes(Date, ped_count)) + geom_line(colour = "blue") + labs(title = "Time-series of Pedestrians vs Year - 2021", 
+                                                    x = "Month (2021)", y = "Pedestrian Count")
+```
+
+The daily pedestrian count pattern in 2021 appears to vary significantly throughout the course of the year, with emphatic drops/rises in February, Late April, Early June, and most of July. This variability can almost certainly be attributed to the numerous COVID-19 lock downs that were imposed in Melbourne throughout the year, given the closure of shops, offices etc. The lower pedestrian counts from September onwards is most likely caused by an ongoing lockdown at the time, which only ended on 21/10/2021. 
+\clearpage
+
+\subsection{Question 2}
+
+Create plots of the monthly and weekly pedestrian counts.
+
+a) Which month has the largest pedestrian count in 2021?
+
+```{r, echo=TRUE, message=FALSE, warning=FALSE, eval=TRUE}
+library(lubridate) #initialise lubridate for date manipulation
+
+# Add month and day columns to dataset
+pedestrians_2021_month_day <- pedestrians_2021 %>%
+  mutate(month = month(Date, label=TRUE, abbr=TRUE)) %>%
+  mutate(day = wday(Date, label=TRUE, abbr=TRUE))
+
+# group above by month to get sum(Count) for each month
+monthly <- pedestrians_2021_month_day %>%
+  group_by(month) %>%
+  summarise(ped_count = sum(Count))
+
+# bar chart of month vs count
+ggplot(monthly, aes(month, ped_count, fill = month)) + geom_bar(stat = "identity") + labs(title = "Pedestrian Count by Month - 2021", 
+                                                                            x = "Month", y = "Pedestrian Count")
+
+
+```
+
+April has the largest pedestrian count in 2021 (16,770,705), followed closely by March (14,595,006). 
+
+b) Is there a clear day of the week pattern for the pedestrian count? [Hint: You can use lubridate package to manipulate dates and time.]
+
+```{r, echo=TRUE, message=FALSE, warning=FALSE, eval=TRUE}
+# group data by day to get sum(Count) for each weekday
+daily <- pedestrians_2021_month_day %>%
+  group_by(day) %>%
+  summarise(ped_count = sum(Count))
+
+# bar chart of day vs count
+ggplot(daily, aes(day, ped_count, fill = day)) + geom_bar(stat = "identity") + labs(title = "Pedestrian Count per Day - 2021",
+                                                                        x = "Day of Week", y = "Pedestrian Count")
+```
+
+According to the above graphic, there certainly appears to be a clear day of the week pattern for the Melbourne pedestrian count. Pedestrians appear to be less active at the beginning of the working week (i.e. Monday and Tuesday), and gradually become more active as it approaches the weekend. Of all 7 days, Saturday is the most active day for pedestrians (15,365,552), and Monday is the least active (11,709,107). 
+
+\clearpage
+
+\subsection{Question 3}
+
+Use the alluvial plot to compare the pedestrian traffic flow at Melbourne Central, New Quay and Southbank for their day-of-week pattern.
+
+```{r, echo=TRUE, message=FALSE, warning=FALSE, eval=TRUE}
+library(ggalluvial) #initialise ggalluvial library in order to create alluvial plot
+
+# Pedestrian data for Melbourne Central, New Quay, Southbank
+all_locns <- pedestrians_2021_month_day %>%
+  filter(Sensor %in% c("Melbourne Central", "New Quay", "Southbank"))
+
+# group by sensor and day for these locations
+all_locns_grouped <- all_locns %>%
+  group_by(Sensor, day) %>%
+  summarise(ped_count = sum(Count)) %>%
+  arrange(desc(ped_count))
+
+# Alluvial plot
+p1<-ggplot(as.data.frame(all_locns_grouped),
+           aes(y = ped_count, axis1 = Sensor, axis2 = day)) +
+  geom_alluvium(aes(fill = day),
+                width = 0, knot.pos = 0, reverse = FALSE) +
+  guides(fill = FALSE) +
+  geom_stratum(width = 1/8, reverse = FALSE) +
+  geom_text(stat = "stratum", aes(label = after_stat(stratum)),
+            reverse = FALSE) +
+  scale_x_continuous(breaks = 1:2, labels = c("Sensor", "Day")) +
+  ggtitle("Pedestrian Travel in Southbank, New Quay, and Central - by Day") + ylab("Count") + xlab("Stratum")
+p1
+```
+
+The above Alluvial Plot confirms the discovery made in q2 b), that pedestrians are more active during the late working week/weekend than earlier in the week. The top 3 pedestrian tallies, for each respective location, are recorded on Friday, Saturday and Sunday. The alluvial plot also clearly shows that Southbank has the largest number of travelling pedestrians of the 3 sensors, on any given day throughout the week, while New Quay has the lowest number of travelling pedestrians. 
+
+\clearpage
+
+\subsection{Question 4}
+
+Create a Dumbbell Chart to compare the hourly pedestrian counts in January and April 2021 at Southern Cross Station.
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE, eval=TRUE}
+library(ggalt) #initialise ggalt library for Dumbbell Chart
+
+# filter for Southern Cross Station
+q4_data <- pedestrians_2021_month_day %>%
+  filter(Sensor == "Southern Cross Station")
+
+# Southern Cross Station January and April data for Hour 0 and 23
+q4_jan_apr <- q4_data %>%
+  filter(month %in% c("Jan", "Apr") & Time %in% c(0, 23))
+
+# Group data by month and Time (hour)
+q4_grouped <- q4_jan_apr %>%
+  group_by(month, Time) %>%
+  summarise(ped_count = sum(Count))
+
+glimpse(q4_grouped)
+# convert data to 'wide' format for dumbbell chart
+q4_pivot <- pivot_wider(q4_grouped,
+                        names_from = Time,
+                        values_from = ped_count)
+
+# assign names for chart
+names(q4_pivot) <- c("month", "hour0", "hour23")
+
+library(ggalt)
+# Dumbbell chart for Passenger Count Change per Year - Jan to Apr
+ggplot(q4_pivot, aes(y = month, x = hour0, xend = hour23)) +
+  geom_dumbbell(size = 1.2,size_x = 3, size_xend = 3,colour = "grey",
+                colour_x = "#FAAB18", colour_xend = "#1380A1") + theme_minimal() + 
+  labs(title = "Change in Hourly Passenger Count at Southern Cross Station",
+       x = "Passenger Count (Per Hour)",y = "Month")
+
+```
+
+The 'Hour 0' count increased by 27.25%, from 345 in January, to 439 in April. The 'Hour 23' count increased by 45.31%, from 640 in January, to 930 in April. Overall, the Dumbbell Chart clearly highlights the significant increase in pedestrian activity experienced in April. 
+
+\clearpage
+
+\subsection{Question 5}
+
+Using box plots to compare the monthly pattern of the pedestrian counts. Then fit a linear model for each month for pedestrian counts and comment on the performance of the model with residual plots. [You can use add_residuals function from moldelr package to indicate residuals in your plot].
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE, eval=TRUE}
+library(modelr) # initialise modelr library for linear modelling
+
+# obtain count of each date, within each Month. This will allow boxplot to display spread of data
+q5 <- pedestrians_2021_month_day %>%
+  group_by(Date, month) %>%
+  summarise(count = sum(Count))
+
+# boxplot of Pedestrian Count vs Month
+ggplot(q5, aes(month, count)) + geom_boxplot()
+
+# Fitting of Linear Model
+mod <- lm(count ~ month+Date, data = q5)
+grid <- q5 %>% data_grid(q5) %>%
+  add_predictions(mod, "count")
+
+# Overlay onto original box plot
+ggplot(q5, aes(month, count)) + geom_boxplot() +geom_point(data = grid, colour = "red", size = 4)
+
+# add the residuals to the q5 data frame
+q5 <- q5 %>% add_residuals(mod)
+
+# residual plot (get the over/under fitting for each date within each month)
+q5 %>% ggplot(aes(Date, resid)) + geom_ref_line(h = 0) + geom_line() +
+  labs(title="Residual Plot for Date & month vs Pedestrian Count")
+
+```
+
+The boxplot shows a relatively steady increase in Pedestrian traffic from January to April, followed by a sharp drop in May, most likely due to an imposed lockdown. June and July have significantly higher variability in pedestrian traffic, which could be explained by the 2 lockdowns that were imposed (and lifted) during this period. The pedestrian traffic for August and September are far lower than the other months, as Melbourne was in lockdown for this entire period. 
+
+The Residual Plot for this Linear Model, with 'Month' and 'Date' as the predictors, shows that the model has certainly overfitted and underfitted a vast majority of the pedestrian counts, with an eventual flattening in August and September. 
+
+\clearpage
+
+\subsection{Question 6}
+
+Filter out ten dates where the model from Question 5 fails, overestimating and underestimating the pedestrian count, respectively. Use what you know about Melbourne or the internet to explore the possible reasons for the misfits. What does it suggest for your modelling? Is a linear model a good choice for this data?
+
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE, eval=TRUE}
+# Convert date to character first, so it can be filtered
+q5$Date <- as.character(q5$Date)
+
+# Filter selected dates
+q5_dates <- q5 %>%
+  filter(Date %in% c("2021-01-26",
+                     "2021-02-14",
+                     "2021-02-19",
+                     "2021-03-08",
+                     "2021-04-25",
+                     "2021-05-27",
+                     "2021-06-14",
+                     "2021-07-16",
+                     "2021-07-30",
+                     "2021-09-24")) %>%
+  mutate(resid_sum = count + resid)
+
+# Convert back to date format for the plot
+q5_dates$Date <- as.Date(q5_dates$Date)
+
+# residual plot of the selected dates
+ggplot(q5_dates, aes(Date, resid)) + geom_ref_line(h = 0) + geom_line() +
+  labs(title="Residual Plot for 10 Selected Dates")
+
+# summary of lm(mod)
+summary(mod)
+```
+
+The first date selected is for Australia Day (26/01/2021). The model overfitted this date by 14,820. This is understandable, given the greater number of pedestrian traffic that would be expected on a public holiday, without any enforced lockdowns. The predicted count appears to be consistent with the actual range of pedestrian traffic during this month. 
+
+The second date selected is for Valentine's Day (14/02/2021). The model underestimated this date by a substantial 224,907 pedestrians. Though this is far fewer than the actual, Melbourne was also in lockdown during this period. The model did not predict this date too well, as the predicted count is well below 0 pedestrians (-107,236).  
+
+The third date selected is for 2 days after the Feb 2021 lockdown ended (19/02/2021). This model overestimated the date by 32,802. The predicted count is within the range of the actual pedestrian counts for February. This prediction could be perceived as fairly reliable, as pedestrian traffic increases after the lifting of a lockdown. 
+
+The fourth date selected is for the Labour Day Public Holiday (08/03/2021). The model underestimated the count by 116,403. This count is well below the range of actual pedestrian counts for March, so the model did not predict this date too well. This is also unusual given that Melbourne was not in lockdown during this time period. 
+
+The fifth date selected is for Anzac Day (25/04/2021). The model underestimated the count by 28,444. The count appears to be consistent with the range of actual pedestrian counts for April. Given Melbourne was not in lockdown at the time, and that this is a public holiday, the predicted count could be perceived as fairly reliable. 
+
+The sixth date selected is for the start of the late May Melbourne lockdown (27/05/2021). The model underestimated the count by 60,105. The count is far lower than the actual range of pedestrian count, however this could be explained by the significant drop of pedestrians on this date. 
+
+The seventh date selected is for the Queen's Birthday Public Holiday (14/06/2021). The model underestimated the count by 7,457. This is understandable, as the pedestrian count in June had a very high range and variability, given Melbourne was in and out of lockdown during June. The predicted count is well within the actual range of pedestrian counts for June.  
+
+The eighth date selected is for day 2 of the July lockdown (16/07/2021). The model underestimated the count by -210,625. Though pedestrian traffic varied significantly throughout July, due to a 12 day lockdown, this is not a very good prediction, as the predicted count is below 0. The model did not recognize the very high count of nearly 700,000 that also took place during the same month. 
+
+The ninth date selected is for 2 days after the July lockdown ended (30/07/2021). The model overestimated the count by 44,188. The count is consistent with the upper range of pedestrian counts for July. The higher count would be expected, given the lifting of said lockdown. 
+
+The tenth and final date selected is for the AFL Grand Final Parade (24/09/2021). The model underestimated the count by 2,299. The predicted count is consistent with the actual range of pedestrian counts for September. This lower count would be expected, given the far lower pedestrian activity, as Greater Melbourne was in the middle of a lockdown during this date. 
+
+
+Overall, with the exception of a few dates (08/03/2021, 14/02/2021, 16/07/2021), the model, with 'month' and 'date' as predictors, has provided fairly reasonable predictions for the pedestrian counts on the selected dates. The dates selected were those which were more significant than others (e.g. public holiday, start/end of lockdown etc.). Overall, a linear model is a fairly reasonable choice for this data, however an R-squared value of only 0.5433 suggests that the predictors are not explaining all the variation for the pedestrian counts. This could potentially be improved by adding more predictors, or utilizing different predictors entirely. 
+
+
+
+\clearpage
+
+\subsection{Question 7}
+
+Open question: Build your own model to uncover the pedestrian pattern further. Use the broom package to tidy up your model output and include model diagnostic plots. [Hint: You can subset the data set, for instance, to build models for specific months, times or sensors, or build a better model than that in Question 5].
+
+New Model: Relationship between count (dependent) and sensors and day (independent), at time = 12
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE, eval=TRUE}
+library(broom) #initialize broom library for tidy up of output
+
+# Filter the data to get pedestrian counts where Time == 12
+q7_data <- pedestrians_2021_month_day %>%
+  filter(Time %in% c(12))
+
+# linear model, with Sensor and day as the predictors
+q7_model <- lm(Count ~ Sensor + day, data = q7_data)
+
+# use broom to tidy up the data (large number of predictors)
+# Summary can be found below if required. 
+tidy(q7_model)
+
+
+# Generation of model diagnostic plots
+par(mfrow = c(2,2))
+plot(q7_model)
+
+
+```
+
+For this question, a linear model was generated, which will aim to explore the relationship between Pedestrian Count (dependent), and both the Sensor, as well as day of the week (independent), at Time == 12. As per the below summary, the predictor variables were able to explain almost 60% of the total variation present in the pedestrian count at time 12. 
+
+The 'Residuals vs Fitted' plot shows the residuals are not too far spread from the actual values, with the exception of a few outliers. 
+
+The 'Normal Q-Q' plot shows that the residuals in this model are fairly normally distributed, again with the exception of a few outliers. 
+
+The 'Scale-Location' plot shows that the residuals are mostly spread equally along the predictors. 
+
+And finally, the 'Residuals vs Leverage' plot shows that there are no particular/significant values that would significantly affect the R score if they were to be excluded. 
+
+\clearpage
+\section{References}
+
+References for this assignment:
+
+Bob Rudis, Ben Bolker and Jan Schulz (2017). ggalt: Extra Coordinate Systems, 'Geoms', Statistical Transformations, Scales
+and Fonts for 'ggplot2'. R package version 0.4.0. https://CRAN.R-project.org/package=ggalt
+
+David Robinson, Alex Hayes and Simon Couch (2021). broom: Convert Statistical Objects into Tidy Tibbles. R package version
+0.7.9. https://CRAN.R-project.org/package=broom
+
+Garrett Grolemund, Hadley Wickham (2011). Dates and Times Made Easy with lubridate. Journal of Statistical Software, 40(3),
+1-25. URL https://www.jstatsoft.org/v40/i03/.
+
+Hadley Wickham (2020). modelr: Modelling Functions that Work with the Pipe. R package version 0.1.8.
+https://CRAN.R-project.org/package=modelr
+
+Melbourne Lockdown Dates: https://www.abc.net.au/news/2021-10-03/melbourne-longest-lockdown/100510710
+
+R Core Team (2021). R: A language and environment for statistical computing. R Foundation for Statistical Computing, Vienna, Austria. URL https://www.R-project.org/.
+
+The data was obtained from: https://data.melbourne.vic.gov.au/
+
+Wickham et al., (2019). Welcome to the tidyverse. Journal of Open Source Software, 4(43), 1686,
+https://doi.org/10.21105/joss.01686
+
+Yihui Xie (2021). knitr: A General-Purpose Package for Dynamic Report##   Generation in R. R package version 1.33.
+
+
+
+
+
+
+
+\clearpage
+\section{Appendices}
+
+Summary for Q7 Linear Model
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE, eval=TRUE}
+summary(q7_model)
+```
+
+
+
